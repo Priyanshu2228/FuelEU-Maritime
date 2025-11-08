@@ -1,0 +1,73 @@
+// Database connection
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Prisma client generator
+generator client {
+  provider = "prisma-client-js"
+}
+
+model FuelRecord {
+  id        Int       @id @default(autoincrement())
+  fuelType  String
+  quantity  Float
+  date      DateTime  @default(now())
+  emissions Emission?  // optional because a fuel record might not have emissions yet
+}
+
+model Emission {
+  id           Int       @id @default(autoincrement())
+  value        Float
+  unit         String
+  fuelRecord   FuelRecord @relation(fields: [fuelRecordId], references: [id])
+  fuelRecordId Int
+}
+
+/// Routes and compliance models for Fuel EU Maritime
+model Route {
+  id              Int     @id @default(autoincrement())
+  routeId         String  @unique
+  vesselType      String
+  fuelType        String
+  year            Int
+  ghgIntensity    Float
+  fuelConsumption Float
+  distance        Float
+  totalEmissions  Float
+  isBaseline      Boolean @default(false)
+}
+
+model ShipCompliance {
+  id        Int     @id @default(autoincrement())
+  shipId    String
+  routeId   Int?
+  year      Int
+  cb_gco2eq Float
+}
+
+model BankEntry {
+  id             Int      @id @default(autoincrement())
+  shipId         String
+  year           Int
+  amount_gco2eq  Float
+  createdAt      DateTime @default(now())
+}
+
+model Pool {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  year      Int
+  createdAt DateTime @default(now())
+  members   PoolMember[]
+}
+
+model PoolMember {
+  id        Int    @id @default(autoincrement())
+  pool      Pool   @relation(fields: [poolId], references: [id])
+  poolId    Int
+  shipId    String
+  cb_before Float
+  cb_after  Float
+}
