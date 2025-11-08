@@ -1,0 +1,247 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import Container from '../components/ui/Container';
+
+interface PoolRouteData {
+  shipId: string;
+  year: number;
+  cb_gco2eq: number;
+}
+
+const cardStyle = {
+  backgroundColor: 'white',
+  borderRadius: '8px',
+  padding: '16px',
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+  marginBottom: '16px'
+};
+
+const buttonStyle = {
+  padding: '8px 16px',
+  backgroundColor: '#10b981',
+  color: 'white',
+  border: 'none',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  fontSize: '14px'
+};
+
+const removeButtonStyle = {
+  ...buttonStyle,
+  backgroundColor: '#ef4444'
+};
+
+const inputStyle = {
+  padding: '8px 12px',
+  border: '1px solid #e5e7eb',
+  borderRadius: '4px',
+  fontSize: '14px',
+  width: '120px'
+};
+
+const tableStyle = {
+  width: '100%',
+  borderCollapse: 'collapse' as const,
+  marginTop: '16px'
+};
+
+const thStyle = {
+  textAlign: 'left' as const,
+  padding: '12px',
+  borderBottom: '2px solid #e5e7eb',
+  color: '#4b5563',
+  fontSize: '14px',
+  fontWeight: 600
+};
+
+const tdStyle = {
+  padding: '12px',
+  borderBottom: '1px solid #e5e7eb',
+  color: '#1f2937',
+  fontSize: '14px'
+};
+
+const Pooling: React.FC = () => {
+  const [routes, setRoutes] = useState<PoolRouteData[]>([]);
+  const [shipId, setShipId] = useState<string>('R001');
+  const [year, setYear] = useState<number>(2024);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const API_BASE = ((import.meta as any).env || {}).VITE_API_BASE_URL || 'http://localhost:3000/api';
+
+  const fetchPooled = async () => {
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/pools`);
+      setRoutes(res.data.routes);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || 'Failed to fetch pooled routes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addRoute = async () => {
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_BASE}/pools`, { shipId, year });
+      setRoutes(res.data.routes);
+      setSuccess(`Successfully added route ${shipId} to the pool`);
+      setShipId(''); // Reset input
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || 'Failed to add route to pool');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeRoute = async (routeId: string) => {
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+    try {
+      const res = await axios.delete(`${API_BASE}/pools/${routeId}`);
+      setRoutes(res.data.routes);
+      setSuccess(`Successfully removed route ${routeId} from the pool`);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || 'Failed to remove route from pool');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPooled();
+  }, []);
+
+  const averageCB = routes.length > 0 
+    ? routes.reduce((sum, route) => sum + route.cb_gco2eq, 0) / routes.length
+    : 0;
+
+  return (
+    <Container>
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ marginBottom: '16px' }}>Route Pooling</h1>
+        <p style={{ color: '#4b5563' }}>
+          Manage your route pool to optimize compliance balance across multiple routes
+        </p>
+      </div>
+
+      <div style={cardStyle}>
+        <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>Add Route to Pool</h2>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#4b5563' }}>
+              Route ID
+            </label>
+            <input
+              value={shipId}
+              onChange={(e) => setShipId(e.target.value)}
+              style={inputStyle}
+              placeholder="e.g. R001"
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', color: '#4b5563' }}>
+              Year
+            </label>
+            <input
+              type="number"
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              style={inputStyle}
+              min="2024"
+              max="2026"
+            />
+          </div>
+          <button 
+            style={buttonStyle} 
+            onClick={addRoute}
+            disabled={loading || !shipId}
+          >
+            Add to Pool
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ padding: '12px', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '4px', marginBottom: '16px' }}>
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div style={{ padding: '12px', backgroundColor: '#dcfce7', color: '#15803d', borderRadius: '4px', marginBottom: '16px' }}>
+          {success}
+        </div>
+      )}
+
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '18px' }}>Pooled Routes</h2>
+          {routes.length > 0 && (
+            <div style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#f0fdf4', 
+              borderRadius: '4px',
+              border: '1px solid #dcfce7'
+            }}>
+              <span style={{ color: '#15803d', fontSize: '14px' }}>
+                Average CB: {averageCB.toFixed(2)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {routes.length > 0 ? (
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Route ID</th>
+                <th style={thStyle}>Year</th>
+                <th style={thStyle}>CB (gCO2eq)</th>
+                <th style={thStyle}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {routes.map(route => (
+                <tr key={route.shipId}>
+                  <td style={tdStyle}>{route.shipId}</td>
+                  <td style={tdStyle}>{route.year}</td>
+                  <td style={tdStyle}>{route.cb_gco2eq.toFixed(2)}</td>
+                  <td style={tdStyle}>
+                    <button 
+                      style={removeButtonStyle}
+                      onClick={() => removeRoute(route.shipId)}
+                      disabled={loading}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div style={{ 
+            padding: '24px', 
+            textAlign: 'center', 
+            color: '#6b7280',
+            backgroundColor: '#f9fafb',
+            borderRadius: '4px'
+          }}>
+            No routes in the pool yet. Add routes above to start pooling.
+          </div>
+        )}
+      </div>
+    </Container>
+  );
+};
+
+export default Pooling;
